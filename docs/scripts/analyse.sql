@@ -20,16 +20,10 @@ FROM accounts
 SELECT DISTINCT COUNT(customer_id) AS kunden_anzahl
 FROM customers
 ;
-
-SELECT  customer_id,
-        COUNT(account_id) AS konten_anzahl_pro_kunde,
-        SUM(balance_usd) AS gesamt_guthaben_pro_kunde
-FROM accounts
-GROUP BY customer_id
-ORDER BY gesamt_guthaben_pro_kunde DESC
-LIMIT 10;
+-- 50000 kunden insgesamt
 
 
+--
 SELECT  c.customer_id,
         CONCAT(c.first_name,' ',c.last_name) AS kunden_name,
         c.email,
@@ -38,54 +32,50 @@ SELECT  c.customer_id,
         COUNT(a.account_id) AS anzahl_konten,
         SUM(a.balance_usd) AS gesamt_guthaben_usd
 FROM customers c
-INNER JOIN accounts a ON c.customer_id = a.customer_id
+LEFT JOIN accounts a 
+    ON c.customer_id = a.customer_id
 GROUP BY c.customer_id, c.first_name, c.last_name, c.email, c.credit_score, c.city
-ORDER BY gesamt_guthaben_usd DESC
-LIMIT 10;
+HAVING COUNT(a.account_id) > 0
+ORDER BY anzahl_konten DESC, gesamt_guthaben_usd DESC
+;
+
+--kunden die kein konto besitzen
+
+SELECT COUNT(c.customer_id)
+FROM accounts a
+RIGHT JOIN customers c 
+    ON c.customer_id = a.customer_id
+WHERE a.customer_id IS NULL; --- die menge aggregiert
+
+
+---hier sieht man die kunden informationen . Kann eine gute hinweis für die Marketing Abteilung sein.
+SELECT 
+    c.customer_id,
+    c.first_name || ' ' || c.last_name AS kunden_name,
+    c.email,
+    c.city,
+    c.credit_score,
+    c.created_at
+FROM customers c
+LEFT JOIN accounts a 
+    ON c.customer_id = a.customer_id
+WHERE a.account_id IS NULL; -- Filtert alle Kunden heraus, die KEIN Konto besitzen
 
 ------------------------------------------------------------------------------------------------------------------------------
 -- 50000 kunden in der Datensatz insgesamt.
--- es gibt 39560 verschiedene kunden.
--- eine menge von 6300 kunden_name kommen mehr mals vor
--- eine hohe vom 38838 bezitzsen zumindestens 1 konto.
----------------------------------------------------------------------------------------------------------------------------------
-
--- Wie viele Bankkonten sind im Datensatz vorhanden und wie verteilen sie sich nach Kontotypen (z.B. Girokonto, Sparkonto, Kreditkonto)?
-SELECT DISTINCT COUNT(account_id) AS konto_anzahl, 
-                account_type AS kontotyp, 
-                ROUND(COUNT(account_id) * 100.0 / SUM(COUNT(*)) OVER (),2)  AS prozent_anteil
-FROM accounts 
-GROUP BY account_type;
-
--- 5.Wie viele Transaktionen wurden insgesamt durchgeführt und wie verteilen sie sich nach Transaktionstypen 
---(z.B. Einzahlung, Auszahlung, Überweisung)?
-SELECT COUNT(transaction_id)
-FROM transactions
-; --1000000 transaktionen wurden insgesamt durchgeführt. es gibt kein infos zum transaktionstypen
+-- es gibt eine menge im höhe von 38838 die mindestens 1 konto besitzen.
+-- eine menge von 11162 kunden besitzen kein konto
+--------------------------------------------------------------------------------------------------------------------------------
 
 
--- 6.Welche Kunden generieren den höchsten Transaktionswert (Summe aller Transaktionsbeträge)?
---Welche Kunden haben die höchste Anzahl an Transaktionen?
-WITH transactionsanzal_tabelle AS (
-                            SELECT  COUNT(transaction_id) AS transactionsanzahl,
-                                    SUM(amount_usd) AS transactionswert_nach_kunden,
-                                    a.customer_id AS kunden_id
-                            FROM transactions t
-                            LEFT JOIN accounts a
-                                ON a.account_id = t.account_id
-                            GROUP BY  a.customer_id
-                            ORDER BY transactionsanzahl DESC)
-SELECT  CONCAT(first_name,' ',last_name) AS kunden_name, 
-        transactionsanzahl,
-        transactionswert_nach_kunden
-FROM transactionsanzal_tabelle t
-JOIN customers c
-ON t.kunden_id = c.customer_id
-ORDER BY transactionsanzahl DESC, transactionswert_nach_kunden DESC;
 
--- kunden mit höchsten transaktionsanzahl haben ebenfalls die höchste transaktionswert. anzegeigt sind top-10
 
----------------------------------------------------------------------------------------------------------------------------
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+-- ANALYSE VON KONTOSTÄNDE
+-----------------------------------------------------------------------------------------------------------------------------------
+
 --.Analysiere Kontostände:
 --•Welche Konten haben die höchsten Guthaben?
 SELECT  account_id,
@@ -107,6 +97,13 @@ LIMIT 20;
 
 
 
+-- Wie viele Bankkonten sind im Datensatz vorhanden und wie verteilen sie sich nach Kontotypen (z.B. Girokonto, Sparkonto, Kreditkonto)?
+SELECT DISTINCT COUNT(account_id) AS konto_anzahl, 
+                account_type AS kontotyp, 
+                ROUND(COUNT(account_id) * 100.0 / SUM(COUNT(*)) OVER (),2)  AS prozent_anteil
+FROM accounts 
+GROUP BY account_type;
+
 
 --•Welche Konten weisen negative Salden auf (falls vorhanden)?
 
@@ -116,10 +113,42 @@ LIMIT 20;
  --keine konten weisen negative salden
 
 
------------------------------------------------------------------------------------------------------
---8.Untersuche das Transaktionsverhalten über die Zeit:
---•Gibt es zeitliche Muster (z.B. nach Monat, Quartal oder Jahr)?
 
+
+
+
+-----------------------------------------------------------------------------------------------------
+.--TRANSAKTIONEN
+
+
+-- 5.Wie viele Transaktionen wurden insgesamt durchgeführt und wie verteilen sie sich nach Transaktionstypen 
+--(z.B. Einzahlung, Auszahlung, Überweisung)?
+SELECT COUNT(transaction_id)
+FROM transactions; --1000000 transaktionen wurden insgesamt durchgeführt. es gibt kein infos zum transaktionstypen
+
+
+-- 6.Welche Kunden generieren den höchsten Transaktionswert (Summe aller Transaktionsbeträge)?
+--Welche Kunden haben die höchste Anzahl an Transaktionen?
+WITH transactionsanzal_tabelle AS (
+                            SELECT  COUNT(transaction_id) AS transactionsanzahl,
+                                    SUM(amount_usd) AS transactionswert_nach_kunden,
+                                    a.customer_id AS kunden_id
+                            FROM transactions t
+                            LEFT JOIN accounts a
+                                ON a.account_id = t.account_id
+                            GROUP BY  a.customer_id
+                            ORDER BY transactionsanzahl DESC)
+SELECT  CONCAT(first_name,' ',last_name) AS kunden_name, 
+        transactionsanzahl,
+        transactionswert_nach_kunden
+FROM transactionsanzal_tabelle t
+JOIN customers c
+ON t.kunden_id = c.customer_id
+ORDER BY transactionsanzahl DESC, transactionswert_nach_kunden DESC; -- kunden mit höchsten transaktionsanzahl haben ebenfalls die höchste transaktionswert. anzegeigt sind top-10
+
+
+--ransaktionsverhalten über die Zeit:
+--•Gibt es zeitliche Muster (z.B. nach Monat, Quartal oder Jahr)?
 -- Monatlische transaktionsverhalten
 SELECT 
     DATE_TRUNC('MONTH',transaction_date) AS month,
@@ -215,27 +244,11 @@ Da Kreditkarten für Banken durch Gebühren (Interchange Fees) oft profitabler s
  Debit-Nutzer zu Credit-Nutzern hochzustufen (Upselling).*/
 
 
-
-
-
 -------------------------------------------------------------------------------------------------------
---10.Identifiziere typische Risiko-oder Merkmalsmuster:
---•Gibt es Kunden mit ungewöhnlich hohem Transaktionsvolumen bei geringem Kontostand?
-
-SELECT COUNT(transaction_id),
-        SUM(amount_usd), balance_usd,
-        customer_id
-FROM transactions t 
-JOIN accounts a     
-ON t.account_id = a.account_id
-GROUP BY customer_id
-ORDER BY  COUNT(transaction_id) DESC;
-
---•Gibt es saisonale Peaks in bestimmten Transaktionstypen?
 
 
 
---11.Identifiziere mindestens 3 eigenständige, interessante Erkenntnisse,
+--Identifiziere mindestens 3 eigenständige, interessante Erkenntnisse,
 -- die über die obenstehenden Fragestellungen hinausgehen 
 --(z.B. Muster in Ausgabenverhalten, Merkmale nach Kundengruppen, Vergleich zwischen Kontotypen)
 
@@ -281,6 +294,7 @@ LIMIT 10;
 --.(Optional: Erstelle Views für typische Finance-Analysen
 
 -- z.B. „Top-10 Transaktionskunden“,
+
 CREATE VIEW top_10_transaktionskunden AS
 WITH transactionsanzal_tabelle AS (
                             SELECT  COUNT(transaction_id) AS transactionsanzahl, 
@@ -295,7 +309,8 @@ SELECT  CONCAT(first_name,' ',last_name) AS kunden_name,
 FROM transactionsanzal_tabelle t
 JOIN customers c
 ON t.kunden_id = c.customer_id
-ORDER BY transactionsanzahl DESC;
+ORDER BY transactionsanzahl DESC
+LIMIT 10;
 
 -- „Kontostände nach Kunden“
 CREATE VIEW Top_10_kunden AS
@@ -307,9 +322,10 @@ SELECT  c.customer_id,
         COUNT(a.account_id) AS anzahl_konten,
         SUM(a.balance_usd) AS gesamt_guthaben_usd
 FROM customers c
-INNER JOIN accounts a ON c.customer_id = a.customer_id
+LEFT JOIN accounts a 
+    ON c.customer_id = a.customer_id
 GROUP BY c.customer_id, c.first_name, c.last_name, c.email, c.credit_score, c.city
-ORDER BY gesamt_guthaben_usd DESC
+ORDER BY anzahl_konten DESC, gesamt_guthaben_usd DESC
 LIMIT 10;
 
 
@@ -325,7 +341,62 @@ ORDER BY month;
 
 
 
--- Dieses Skript berechnet die zeitliche trends in gesamte bank
+-- Kunden die kein aktiven konto bisitzen
+
+CREATE OR REPLACE VIEW inactive_customers_report AS
+SELECT 
+    c.customer_id,
+    c.first_name || ' ' || c.last_name AS kunden_name,
+    c.email,
+    c.city,
+    c.credit_score,
+    c.created_at,
+    'Kein Konto vorhanden' AS status_grund
+FROM customers c
+LEFT JOIN accounts a 
+    ON c.customer_id = a.customer_id
+WHERE a.account_id IS NULL; -- Filtert alle Kunden heraus, die KEIN Konto besitzen
+
+-----------------------------------------------------------------------------------------------------------------
+-- BRANCH PERFORMANCE
+-- Diese Ansicht berechnet für jede Filiale, wie viele Kunden in ihrer Stadt wohnen, 
+-- wie hoch das dortige Sparguthaben ist und wie viel Umsatz die Händler (merchants) in dieser Stadt machen.
+--------------------------------------------------------------------------------------------------------
+
+
+
+-- Check A: Welche Städte gibt es überhaupt bei den Filialen?
+SELECT city, COUNT(*) FROM branches GROUP BY city;
+
+-- Check B: Tauchen genau DIESE Städte auch bei den Kunden auf?
+
+SELECT city, COUNT(*) FROM customers WHERE city IN (SELECT city FROM branches) GROUP BY city;
+
+-- Die Daten sind extrem stark gestreut. Fast jede Stadt in deiner customers-Tabelle hat nur 1 bis 5 Kunden 
+--(manche Ausnahmen wie Lake Michael haben 35, West James 23).
+--Gleichzeitig gibts insgesamt 75.000 Konten, was bedeutet, dass 50.000 Kunden auf Tausende von solchen winzigen, generierten Städten aufgeteilt sind.
+
+
+
+
+
+
+-----------------------------------------------------------------------------------------------------------
+/*
+Eine Tabelle wurde erzeugt bank_monthly_snapshots. 
+        --Alle zeitliche trends in gesamte bank wurde berechnet und dort gespeichert.
+        -- die inhalt des dokuments betract DER GLOBALE ÜBERBLICK 
+        -- Analyse von verschiedene kartentypen
+        -- Neuzugänge und entwiklung in jedem Monat
+        
+Um die datei schnell reinzukreigen, wurde eine prozedur erstellt - generate_montly_snapshots. 
+-- diese prozedur nehmt das Jahr und den Monat als inout, und liefert 3 wichtigste kennzahlen für unsere anaylse
+-- Die berechnete informationen werden in bank_monthly_snapshots gespeichert zum bearbeitung in power bi.
+*/
+----------------------------------------------------------------------------------------------------------
+
+-- unsere uberblicke Tabelle 
+DROP TABLE IF EXISTS bank_monthly_snapshots;
 CREATE TABLE IF NOT EXISTS bank_monthly_snapshots (
     snapshot_id SERIAL PRIMARY KEY,
     jahr INT NOT NULL,
@@ -336,79 +407,7 @@ CREATE TABLE IF NOT EXISTS bank_monthly_snapshots (
 );
 
 
--- werte hinzugügen
--- die inhalt des dokuments betract DER GLOBALE ÜBERBLICK 
--- KARTENTYP-ANALYSE
--- NEUZUGÄNGE & ENTWICKLUNG IN DIESEM MONAT
-
-
-INSERT INTO bank_monthly_snapshots (jahr, monat, monats_label, metrics_json)
-SELECT 
-    2026 AS jahr,
-    8 AS monat,
-    '2026-08' AS monats_label,
-    jsonb_build_object(
-        'snapshot_info', jsonb_build_object(
-            'jahr', 2026,
-            'monat', 8,
-            'label', 'August 2026'
-        ),
-        'global_kpis', jsonb_build_object(
-            'anzahl_kunden_total', (SELECT COUNT(*) FROM customers),
-            'anzahl_konten_total', (SELECT COUNT(*) FROM accounts),
-            'anzahl_karten_total', (SELECT COUNT(*) FROM cards),
-            'anzahl_loes_total', (SELECT COUNT(*) FROM loans),
-            'gesamt_guthaben_bank_usd', (SELECT ROUND(SUM(balance_usd), 2) FROM accounts)
-        ),
-        'kartentyp_analyse', (
-            SELECT jsonb_agg(
-                jsonb_build_object(
-                    'karten_typ', karten_typ,
-                    'anzahl_konten', anzahl_konten,
-                    'avg_kontostand_usd', avg_kontostand_usd,
-                    'gesamt_transaktionsvolumen_monat_usd', gesamt_transaktionsvolumen_usd,
-                    'avg_einzeltransaktion_monat_usd', avg_einzeltransaktion_usd
-                )
-            )
-            FROM (
-                SELECT 
-                    COALESCE(c.card_type, 'Keine Karte') AS karten_typ,
-                    COUNT(DISTINCT a.account_id) AS anzahl_konten,
-                    ROUND(AVG(a.balance_usd), 2) AS avg_kontostand_usd,
-                    ROUND(COALESCE(SUM(t.amount_usd), 0), 2) AS gesamt_transaktionsvolumen_usd,
-                    ROUND(COALESCE(AVG(t.amount_usd), 0), 2) AS avg_einzeltransaktion_usd
-                FROM accounts a
-                LEFT JOIN cards c ON a.account_id = c.account_id
-                -- Hier filtern wir die Transaktionen streng auf den Berichtsmonat August 2026
-                LEFT JOIN transactions t ON a.account_id = t.account_id 
-                    AND DATE_TRUNC('month', t.transaction_date) = '2026-08-01'::timestamp
-                GROUP BY c.card_type
-            ) as sub
-        ),
-        'monatliche_trends', jsonb_build_object(
-            'neue_kunden_dieser_monat', (
-                SELECT COUNT(*) FROM customers 
-                WHERE DATE_TRUNC('month', created_at) = '2026-08-01'::timestamp
-            ),
-            'neue_konten_dieser_monat', (
-                SELECT COUNT(*) FROM accounts 
-                WHERE DATE_TRUNC('month', open_date) = '2026-08-01'::timestamp
-            ),
-            'transaktions_volumen_monat_gesamt', (
-                SELECT ROUND(COALESCE(SUM(amount_usd), 0), 2) FROM transactions 
-                WHERE DATE_TRUNC('month', transaction_date) = '2026-08-01'::timestamp
-            ),
-            'anzahl_transaktionen_monat_gesamt', (
-                SELECT COUNT(*) FROM transactions 
-                WHERE DATE_TRUNC('month', transaction_date) = '2026-08-01'::timestamp
-            )
-        )
-    ) AS metrics_json;
-
-
-
------------------------------------------------------------------------------------------------------------
--- eine prozedur erstellen um kern zahlen einfach aufzurufen
+-- Prezedur zum automatisierten daten auffüllen 
 CREATE OR REPLACE PROCEDURE generate_monthly_snapshot(p_jahr INT, p_monat INT)
 LANGUAGE plpgsql
 AS $$
@@ -417,17 +416,10 @@ DECLARE
     v_monats_ende TIMESTAMP;
     v_monats_label VARCHAR(7);
 BEGIN
-    -- 1. Zeitraum berechnen
     v_monats_start := TO_TIMESTAMP(p_jahr || '-' || LPAD(p_monat::text, 2, '0') || '-01', 'YYYY-MM-DD');
     v_monats_ende := v_monats_start + INTERVAL '1 month';
     v_monats_label := p_jahr || '-' || LPAD(p_monat::text, 2, '0');
 
-    RAISE NOTICE 'Generiere Bank-Snapshot für Zeitraum: % bis %', v_monats_start, v_monats_ende;
-
-    -- 2. Bestehende Daten für diesen Monat löschen, falls die Prozedur erneut ausgeführt wird (verhindert Duplikate)
-    DELETE FROM bank_monthly_snapshots WHERE monats_label = v_monats_label;
-
-    -- 3. Aggregation und JSONB-Generierung
     INSERT INTO bank_monthly_snapshots (jahr, monat, monats_label, metrics_json)
     SELECT 
         p_jahr,
@@ -440,10 +432,10 @@ BEGIN
                 'label', TO_CHAR(v_monats_start, 'TMMonth YYYY') 
             ),
             'global_kpis', jsonb_build_object(
-                'anzahl_kunden_total', (SELECT COUNT(*) FROM customers WHERE created_at < v_monats_ende),
-                'anzahl_konten_total', (SELECT COUNT(*) FROM accounts WHERE open_date < v_monats_ende),
+                'anzahl_kunden_total', (SELECT COUNT(*) FROM customers),
+                'anzahl_konten_total', (SELECT COUNT(*) FROM accounts),
                 'anzahl_karten_total', (SELECT COUNT(*) FROM cards),
-                'anzahl_loans_total', (SELECT COUNT(*) FROM loans WHERE start_date < v_monats_ende),
+                'anzahl_loans_total', (SELECT COUNT(*) FROM loans),
                 'gesamt_guthaben_bank_usd', (SELECT ROUND(SUM(balance_usd), 2) FROM accounts)
             ),
             'kartentyp_analyse', (
@@ -468,19 +460,10 @@ BEGIN
                     LEFT JOIN transactions t ON a.account_id = t.account_id 
                         AND t.transaction_date >= v_monats_start 
                         AND t.transaction_date < v_monats_ende
-                    WHERE a.open_date < v_monats_ende
                     GROUP BY c.card_type
                 ) as sub
             ),
             'monatliche_trends', jsonb_build_object(
-                'neue_kunden_dieser_monat', (
-                    SELECT COUNT(*) FROM customers 
-                    WHERE created_at >= v_monats_start AND created_at < v_monats_ende
-                ),
-                'neue_konten_dieser_monat', (
-                    SELECT COUNT(*) FROM accounts 
-                    WHERE open_date >= v_monats_start AND open_date < v_monats_ende
-                ),
                 'transaktions_volumen_monat_gesamt', (
                     SELECT ROUND(COALESCE(SUM(amount_usd), 0), 2) FROM transactions 
                     WHERE transaction_date >= v_monats_start AND transaction_date < v_monats_ende
@@ -491,49 +474,40 @@ BEGIN
                 )
             )
         );
-
-    RAISE NOTICE 'Snapshot für % erfolgreich erstellt.', v_monats_label;
 END;
 $$;
 
 
-SELECT EXTRACT(MONTH FROM open_date) AS daten_jahr, COUNT(*) 
-FROM accounts 
-GROUP BY daten_jahr
-ORDER BY daten_jahr;
+---------------------------------------------------------------------------------------------------------
+/*
+-- HINWEIS:
+--prozedur generate_monthly_snapshots wurde aufgerufen um die Tabelle bank_montly_snapshots aufzufüllen. 
+-- diese Befehl führt die ganze prozedur für die ganze zeitraum unsere bank.
+
+DO $$
+DECLARE
+    v_jahr INT;
+    v_monat INT;
+BEGIN
+    -- Schleife durch alle Jahre von 2019 bis 2025
+    FOR v_jahr IN 2019..2025 LOOP
+        -- Schleife durch alle 12 Monate des jeweiligen Jahres
+        FOR v_monat IN 1..12 LOOP
+            
+            -- Ruft deine bestehende Prozedur für die jeweilige Kombination auf
+            CALL generate_monthly_snapshot(v_jahr, v_monat);
+            
+        END LOOP;
+    END LOOP;
+END $$;
+
+*/
+----------------------------------------------------------------------------------------------------------
 
 
---prozedur aufrufen
--- Berechne die Snapshots für das passende Jahr (Beispiel 2025, Monate 6, 7 und 8)
-CALL generate_monthly_snapshot(2019, 1);
-CALL generate_monthly_snapshot(2019, 2);
-CALL generate_monthly_snapshot(2019, 3);
-CALL generate_monthly_snapshot(2019, 4);
-CALL generate_monthly_snapshot(2019, 5);
-CALL generate_monthly_snapshot(2019, 6);
-CALL generate_monthly_snapshot(2019, 7);
-CALL generate_monthly_snapshot(2019, 8);
-CALL generate_monthly_snapshot(2019, 9);
-CALL generate_monthly_snapshot(2019, 10);
-CALL generate_monthly_snapshot(2019, 11);
-CALL generate_monthly_snapshot(2019, 12);
+*/
+-- tabelle bank_monthly_snapshots uberprüfen
 
-
-
-CALL generate_monthly_snapshot(2025, 1);
-CALL generate_monthly_snapshot(2025, 2);
-CALL generate_monthly_snapshot(2025, 3);
-CALL generate_monthly_snapshot(2025, 4);
-CALL generate_monthly_snapshot(2025, 5);
-CALL generate_monthly_snapshot(2025, 6);
-CALL generate_monthly_snapshot(2025, 7);
-CALL generate_monthly_snapshot(2025, 8);
-CALL generate_monthly_snapshot(2025, 9);
-CALL generate_monthly_snapshot(2025, 10);
-CALL generate_monthly_snapshot(2019, 11);
-CALL generate_monthly_snapshot(2019, 12);
-
-
---jsonb dok aufrufen
 SELECT * 
 FROM bank_monthly_snapshots;
+

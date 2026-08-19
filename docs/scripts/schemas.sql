@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---Datenbank erstellt 
+--Datenbank : synthetic_bank
 -------------------------------------------------------------------------------
 
 DROP DATABASE IF EXISTS synthetic_bank;
@@ -52,6 +52,8 @@ DROP TABLE IF EXISTS branches;
 CREATE TABLE branches(
  branch_id VARCHAR(20) PRIMARY KEY,
  branch_name VARCHAR(100),
+ city VARCHAR(50),
+ country VARCHAR(50),
  manager_name VARCHAR(100)   
 );
 
@@ -391,6 +393,7 @@ CREATE INDEX idx_accounts_type ON accounts(account_type);
 CREATE INDEX idx_transactions_account_id ON transactions(account_id);
 CREATE INDEX idx_transactions_date ON transactions(transaction_date);
 CREATE INDEX idx_loans_customer_id ON loans(customer_id);
+CREATE INDEX idx_branches_id ON branches(branch_id);
 
 
 
