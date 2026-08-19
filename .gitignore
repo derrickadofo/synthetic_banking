@@ -16,6 +16,9 @@ venv/
 # Power BI
 *.pbix
 
+# Generated SQL data dump (too large for GitHub)
+docs/scripts/transactions_inserts.sql
+
 # OS
 .DS_Store
 Thumbs.db
@@ -26,3 +29,5 @@ Thumbs.db
 # Logs
 *.log
 
+# vscode 
+.vscode/*
