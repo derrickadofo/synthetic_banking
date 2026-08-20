@@ -34,32 +34,31 @@ Diese Abfrage erzeugt die primäre Übersichtstabelle über Konten, Salden und T
 
 ```sql
 SELECT 
-    COALESCE(k.karten_typ, 'Keine Karte') AS karten_typ,
-    COUNT(DISTINCT kt.konto_id) AS anzahl_konten,
-    ROUND(AVG(kt.kontostand_usd), 2) AS avg_kontostand_usd,
-    ROUND(SUM(t.betrag_usd), 2) AS gesamt_transaktionsvolumen_usd,
-    ROUND(AVG(t.betrag_usd), 2) AS avg_einzeltransaktion_usd
-FROM konten kt
-LEFT JOIN karten k 
-    ON kt.konto_id = k.konto_id
-LEFT JOIN transaktionen t 
-    ON kt.konto_id = t.konto_id
-GROUP BY 1
+    COALESCE(c.card_type, 'Keine Karte') AS karten_typ,
+    COUNT(DISTINCT a.account_id) AS anzahl_konten,
+    ROUND(AVG(a.balance_usd), 2) AS avg_kontostand_usd,
+    ROUND(COALESCE(SUM(t.amount_usd), 0), 2) AS gesamt_transaktionsvolumen_usd,
+    ROUND(COALESCE(AVG(t.amount_usd), 0), 2) AS avg_einzeltransaktion_usd
+FROM accounts a
+LEFT JOIN cards c 
+    ON a.account_id = c.account_id
+LEFT JOIN transactions t 
+    ON a.account_id = t.account_id
+GROUP BY c.card_type
 ORDER BY gesamt_transaktionsvolumen_usd DESC;
 
+
 ```
-### 2. Transaktionsfrequenz pro Konto
-Um zu prüfen, ob Karteninhaber häufiger bertagen als kartenlose Kunden:
+### 2.  Gesamtanzahl der Kunden & Kontenverteilung nach Kontotyp
 
 ```sql
 SELECT 
-    COALESCE(k.karten_typ, 'Keine Karte') AS karten_typ,
-    COUNT(t.transaktions_id) AS anzahl_transaktionen,
-    ROUND(COUNT(t.transaktions_id) * 1.0 / COUNT(DISTINCT kt.konto_id), 2) AS avg_transaktionen_pro_konto
-FROM konten kt
-LEFT JOIN karten k ON kt.konto_id = k.konto_id
-LEFT JOIN transaktionen t ON kt.konto_id = t.konto_id
-GROUP BY 1;
+    COUNT(DISTINCT c.customer_id) AS kunden_gesamt,
+    COUNT(DISTINCT a.customer_id) AS kunden_mit_konto,
+    (COUNT(DISTINCT c.customer_id) - COUNT(DISTINCT a.customer_id)) AS kunden_ohne_konto
+FROM customers c
+LEFT JOIN accounts a ON c.customer_id = a.customer_id;
+
 
 ```
 ### 3. Identifikation von High-Value-Kunden ohne Karte
@@ -67,14 +66,16 @@ Identifiziert kartenlose Kunden mit hohem Kontostand (> $100.000) für Upselling
 
 ```sql
 SELECT 
-    kt.konto_id,
-    kt.kunden_id,
-    kt.kontostand_usd
-FROM konten kt
-LEFT JOIN karten k ON kt.konto_id = k.konto_id
-WHERE k.karten_id IS NULL
-  AND kt.kontostand_usd >= 100000
-ORDER BY kt.kontostand_usd DESC;
+     a.account_id,
+     a.customer_id,
+     a.balance_usd
+FROM accounts a
+LEFT JOIN cards c
+    ON a.account_id = c.account_id
+WHERE c.account_id IS NULL
+  AND a.balance_usd >= 100000
+ORDER BY a.balance_usd DESC;
+
 
 ```
 ### 4. Volumen-Verteilung & Marktanteile (Prozentual)
@@ -84,19 +85,21 @@ Berechnet den prozentualen Anteil am Gesamtumsatz pro Segment:
 ```sql
 WITH SegmentStats AS (
     SELECT 
-        COALESCE(k.karten_typ, 'Keine Karte') AS karten_typ,
-        SUM(t.betrag_usd) AS segment_volumen
-    FROM konten kt
-    LEFT JOIN karten k ON kt.konto_id = k.konto_id
-    LEFT JOIN transaktionen t ON kt.konto_id = t.konto_id
-    GROUP BY 1
+        COALESCE(c.card_type, 'Keine Karte') AS karten_typ,
+        SUM(t.amount_usd) AS transaktion_volumen
+    FROM accounts a
+    LEFT JOIN cards c
+        ON c.account_id = a.account_id
+    LEFT JOIN transactions t
+        ON a.account_id = t.account_id
+    GROUP BY karten_typ
 )
 SELECT 
     karten_typ,
-    segment_volumen,
-    ROUND((segment_volumen / SUM(segment_volumen) OVER ()) * 100, 2) AS prozent_gesamtvolumen
+    transaktion_volumen,
+    ROUND((transaktion_volumen / SUM(transaktion_volumen) OVER ()) * 100, 2) AS prozent_gesamtvolumen
 FROM SegmentStats
-ORDER BY segment_volumen DESC;
+ORDER BY transaktion_volumen DESC;
 
 ```
 # 1. 📊 Power BI Dashboard (Vorschau & Ergebnisse)
