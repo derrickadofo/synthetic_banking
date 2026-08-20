@@ -24,6 +24,9 @@ Analyse eines synthetischen Bankdatensatzes mit 1,26 Mio. Datensätzen zur prakt
 * **Symmetrische Verteilung:** Debit- und Kreditkarten halten sich sowohl bei den Kontozahlen (ca. 36.500 Konten) als auch beim Gesamtvolumen exakt die Waage.
 
 ---
+## Entity Relation Diagram
+![ER Diagram](docs/ER_Diagram.png)
+---
 
 ## 🛠️ SQL Analysen & Queries
 
@@ -115,5 +118,3 @@ Donut-Chart: Marktanteil am Transaktionsvolumen nach karten_typ (Debit vs. Credi
 Balkendiagramm: Vergleich der Kundenanzahl vs. Gesamtertrag je Segment.
 
 Interactive Slicers: Filterung nach Region, Kundenalter und Konto-Erstellungsdatum.
-
-
