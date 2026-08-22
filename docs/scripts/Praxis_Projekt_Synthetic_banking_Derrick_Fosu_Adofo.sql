@@ -277,6 +277,7 @@ CREATE INDEX idx_branches_id ON branches(branch_id);
 -------------------------------------------------------------------------------
 
 -- Frage 3 & 4: Gesamtanzahl der Kunden & Kontenverteilung nach Kontotyp
+ 
 SELECT 
     COUNT(DISTINCT c.customer_id) AS kunden_gesamt,
     COUNT(DISTINCT a.customer_id) AS kunden_mit_konto,
@@ -366,24 +367,22 @@ WHERE balance_usd < 0; -- Kein negative konten
 WITH quarterly_transaktion AS (
     SELECT 
         TO_CHAR(transaction_date, 'YYYY-"Q"Q') AS quartile,
-        COUNT(transaction_id) AS anzahl_Transaktionen,
-        SUM(amount_usd) AS transaktion_umsatz 
+        COUNT(transaction_id) AS anzahl_transaktionen,
+        SUM(amount_usd) AS transaktion_umsatz
     FROM transactions
     GROUP BY TO_CHAR(transaction_date, 'YYYY-"Q"Q')
-),
-quarterly_lag AS (
-    SELECT 
-        quartile,
-        transaktion_umsatz ,
-        LAG(transaktion_umsatz , 1) OVER (ORDER BY quartile ASC) AS letze_quartile_umsatz
-    FROM quarterly_transaktion
 )
 SELECT 
     quartile,
-    transaktion_umsatz,
-    letze_quartile_umsatz,
-    ROUND(((transaktion_umsatz - letze_quartile_umsatz) * 100.0) / NULLIF(letze_quartile_umsatz, 0), 2) AS qoq_growth_percent
-FROM quarterly_lag
+    transaktion_umsatz AS distinct_quartal_umsatz,
+    LAG(transaktion_umsatz, 1) OVER (ORDER BY quartile ASC) AS letze_quartile_umsatz,
+    ROUND(
+        (
+            (transaktion_umsatz - LAG(transaktion_umsatz, 1) OVER (ORDER BY quartile ASC)) * 100.0
+        ) / NULLIF(LAG(transaktion_umsatz, 1) OVER (ORDER BY quartile ASC), 0), 
+        2
+    ) AS qoq_growth_percent
+FROM quarterly_transaktion
 ORDER BY quartile DESC;
 
 
@@ -402,6 +401,40 @@ LEFT JOIN transactions t
     ON a.account_id = t.account_id
 GROUP BY c.card_type
 ORDER BY gesamt_transaktionsvolumen_usd DESC;
+
+
+--risiko analyse
+WITH kunden_guthaben AS (
+    SELECT 
+        customer_id, 
+        SUM(balance_usd) AS guthaben
+    FROM accounts
+    GROUP BY customer_id
+),
+kunden_kredite AS (
+    SELECT 
+        customer_id, 
+        SUM(loan_amount) AS darlehen
+    FROM loans
+    GROUP BY customer_id
+),
+kunden_guthaben_darhlehen AS (
+    SELECT 
+        c.customer_id,
+        COALESCE(g.guthaben, 0) AS guthaben,
+        COALESCE(k.darlehen, 0) AS darlehen
+    FROM customers c
+    LEFT JOIN kunden_guthaben g ON c.customer_id = g.customer_id
+    LEFT JOIN kunden_kredite k ON c.customer_id = k.customer_id
+)
+SELECT 
+    ROUND(SUM(guthaben), 2) AS gesamtes_guthaben_bank,
+    ROUND(SUM(CASE WHEN darlehen = 0 THEN guthaben ELSE 0 END), 2) AS guthaben_ohne_kredit,
+    ROUND(SUM(CASE WHEN darlehen > 0 THEN guthaben ELSE 0 END), 2) AS guthaben_kreditnehmer,
+    ROUND(SUM(darlehen), 2) AS gesamte_darlehen,
+    ROUND(SUM(CASE WHEN darlehen > 0 THEN guthaben ELSE 0 END) - SUM(darlehen), 2) AS netto_kreditueberhang
+FROM kunden_guthaben_darhlehen;
+
 
 /*
 "karten_typ"	"anzahl_konten"	"avg_kontostand_usd"	"gesamt_transaktionsvolumen_usd"	"avg_einzeltransaktion_usd"
@@ -496,6 +529,116 @@ LEFT JOIN kunden_konten a
     ON c.customer_id = a.customer_id
 ORDER BY gesamt_guthaben_pro_kunde;
 
+
+-- View für Kartentypen vs. Guthaben & Transaktionsvolumen
+CREATE OR REPLACE VIEW kartentype_transaktionen AS
+SELECT 
+    COALESCE(c.card_type, 'Keine Karte') AS karten_typ,
+    COUNT(DISTINCT a.account_id) AS anzahl_konten,
+    ROUND(AVG(a.balance_usd), 2) AS avg_kontostand_usd,
+    ROUND(COALESCE(SUM(t.amount_usd), 0), 2) AS gesamt_transaktionsvolumen_usd,
+    ROUND(COALESCE(AVG(t.amount_usd), 0), 2) AS avg_einzeltransaktion_usd
+FROM accounts a
+LEFT JOIN cards c 
+    ON a.account_id = c.account_id
+LEFT JOIN transactions t 
+    ON a.account_id = t.account_id
+GROUP BY c.card_type
+ORDER BY gesamt_transaktionsvolumen_usd DESC;
+
+
+-- quartile wachstum
+CREATE OR REPLACE VIEW quartarl_wachstum AS
+WITH quarterly_transaktion AS (
+    SELECT 
+        TO_CHAR(transaction_date, 'YYYY-"Q"Q') AS quartile,
+        COUNT(transaction_id) AS anzahl_transaktionen,
+        SUM(amount_usd) AS transaktion_umsatz
+    FROM transactions
+    GROUP BY TO_CHAR(transaction_date, 'YYYY-"Q"Q')
+)
+SELECT 
+    quartile,
+    transaktion_umsatz AS distinct_quartal_umsatz,
+    LAG(transaktion_umsatz, 1) OVER (ORDER BY quartile ASC) AS letze_quartile_umsatz,
+    ROUND(
+        (
+            (transaktion_umsatz - LAG(transaktion_umsatz, 1) OVER (ORDER BY quartile ASC)) * 100.0
+        ) / NULLIF(LAG(transaktion_umsatz, 1) OVER (ORDER BY quartile ASC), 0), 
+        2
+    ) AS qoq_growth_percent
+FROM quarterly_transaktion
+ORDER BY quartile DESC;
+
+
+
+-- Transaktionen trends nach kartentyp
+CREATE OR REPLACE VIEW kartentyp_trend AS
+WITH daily_summary AS (
+    SELECT 
+        t.transaction_date,
+        COALESCE(c.card_type, 'Keine Karte') AS karten_typ,
+        COUNT(t.transaction_id) AS tages_anzahl_transaktionen,
+        SUM(t.amount_usd) AS tages_transaktionsvolumen_usd
+    FROM transactions t
+    JOIN accounts a ON t.account_id = a.account_id
+    LEFT JOIN cards c ON a.account_id = c.account_id
+    GROUP BY 
+        t.transaction_date,
+        COALESCE(c.card_type, 'Keine Karte')
+)
+SELECT 
+    transaction_date,
+    karten_typ,
+    tages_transaktionsvolumen_usd,
+    tages_anzahl_transaktionen,
+    -- Previous day's volume for this specific card type
+    LAG(tages_transaktionsvolumen_usd, 1) OVER (
+        PARTITION BY karten_typ 
+        ORDER BY transaction_date ASC
+    ) AS prev_day_volumen_usd,
+    -- Cumulative running total to date per card type
+    SUM(tages_transaktionsvolumen_usd) OVER (
+        PARTITION BY karten_typ 
+        ORDER BY transaction_date ASC
+    ) AS cumulative_transaktionsvolumen_usd
+FROM daily_summary
+ORDER BY 
+    transaction_date DESC, 
+    karten_typ;
+
+-- risiko analyse
+CREATE OR REPLACE VIEW risiko_analyse AS
+WITH kunden_guthaben AS (
+    SELECT 
+        customer_id, 
+        SUM(balance_usd) AS guthaben
+    FROM accounts
+    GROUP BY customer_id
+),
+kunden_kredite AS (
+    SELECT 
+        customer_id, 
+        SUM(loan_amount) AS darlehen
+    FROM loans
+    GROUP BY customer_id
+),
+kunden_guthaben_darhlehen AS (
+    SELECT 
+        c.customer_id,
+        COALESCE(g.guthaben, 0) AS guthaben,
+        COALESCE(k.darlehen, 0) AS darlehen
+    FROM customers c
+    LEFT JOIN kunden_guthaben g ON c.customer_id = g.customer_id
+    LEFT JOIN kunden_kredite k ON c.customer_id = k.customer_id
+)
+SELECT 
+    ROUND(SUM(guthaben), 2) AS gesamtes_guthaben_bank,
+    ROUND(SUM(CASE WHEN darlehen = 0 THEN guthaben ELSE 0 END), 2) AS guthaben_ohne_kredit,
+    ROUND(SUM(CASE WHEN darlehen > 0 THEN guthaben ELSE 0 END), 2) AS guthaben_kreditnehmer,
+    ROUND(SUM(darlehen), 2) AS gesamte_darlehen,
+    ROUND(SUM(CASE WHEN darlehen > 0 THEN guthaben ELSE 0 END) - SUM(darlehen), 2) AS netto_kreditueberhang
+FROM kunden_guthaben_darhlehen;
 
 
 -----------------------------------------------------------------------------------------------------------

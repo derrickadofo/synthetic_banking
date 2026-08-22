@@ -107,14 +107,22 @@ ORDER BY transaktion_volumen DESC;
 ```
 # 1. 📊 Power BI Dashboard (Vorschau & Ergebnisse)
 
-(In Kürze verfügbar – Hier werden nach Fertigstellung des Power BI Dashboards die Ergebnisse visualisiert)
+---
+Dieses Power BI Dashboard analysiert ein synthetisches Bankdaten-Portfolio (50.000 Kunden, 75.000 Konten) zur Bewertung von Transaktionsmustern, Liquiditätsströmen und Kreditrisiken.
 
+## 💡 Key Analytical InsightsPortfolio-Volumen & Liquidität: 
+* ** Die Gesamteinlagen der Bank liegen stabil bei $7,51 Mrd. gegenüber einem vergebenen Kreditvolumen von $4,50 Mrd.
+* ** Netto-Kreditüberhang: Kreditnehmer halten nur $3,37 Mrd. an Einlagen bei der Bank, was zu einem Netto-Kreditüberhang von -$1,13 Mrd. in dieser Kundengruppe führt. Dieser Überhang wird aktuell durch die Einlagen reiner Sparkunden ($4,14 Mrd.) abgesichert.
+* **Transaktionsdynamik: Das Transaktionsvolumen verläuft über die Jahre stabil (> $2,02 Mrd./Quartal) mit saisonalen Wachstumsraten (QoQ). Die Segmentierung bleibt konstant (ca. 42 % Credit, 41,5 % Debit, 16,5 % Ohne Karte).
+* **Handlungsempfehlung: Gezieltes Cross-Selling (Deposit Capture), um das Guthaben bestehender Kreditnehmer im Haus zu konsolidieren und das Ausfallrisiko bei Top-Schuldnern zu minimieren.
 
-Geplante Visualisierungen:
-KPI-Karten: Gesamtvolumen ($7,98 Mrd.), Aktive Konten (92.813), Avg. Transaktion ($5.000).
+🛠️ Dashboard Architecture & Visualizations
+* Executive Summary & Key Findings: High-Level KPIs (Total Customer Count, Balance, Loans) und Card-Kacheln.
+* Zeitliche Trends: 100%-Gestapelte Säulendiagramme, Gefüllte Flächendiagramme und QoQ-Growth-Balken mit conditional formatting.
+* Kreditrisiko (Macro Level): Wasserfall-Diagramm zur Herleitung der Netto-Position der Kreditnehmer ($7,51 Mrd. Bank-Einlagen $\rightarrow$ -$1,13 Mrd. Netto-Überhang).
+* Kunden-Analyse (Micro Level): Gruppierte Balkendiagramme zur direkten Gegenüberstellung von Guthaben vs. Darlehen pro Einzelkunde.
 
-Donut-Chart: Marktanteil am Transaktionsvolumen nach karten_typ (Debit vs. Credit vs. Keine Karte).
+⚠️ Data Limitations & Methodology
+* Data Source: Das Dashboard basiert auf synthetischen Daten. Reale Verhaltensmuster (z. B. Zinsänderungsrisiken, makroökonomische Schocks) sind begrenzt abgebildet.
 
-Balkendiagramm: Vergleich der Kundenanzahl vs. Gesamtertrag je Segment.
-
-Interactive Slicers: Filterung nach Region, Kundenalter und Konto-Erstellungsdatum.
+![Zeitliche Trends](docs/Zeitliche_Trends.png)
