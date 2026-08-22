@@ -125,4 +125,6 @@ Dieses Power BI Dashboard analysiert ein synthetisches Bankdaten-Portfolio (50.0
 ⚠️ Data Limitations & Methodology
 * Data Source: Das Dashboard basiert auf synthetischen Daten. Reale Verhaltensmuster (z. B. Zinsänderungsrisiken, makroökonomische Schocks) sind begrenzt abgebildet.
 
+![Zeitliche Trends](docs/Key_Metriks.png)
+
 ![Zeitliche Trends](docs/Zeitliche_Trends.png)
