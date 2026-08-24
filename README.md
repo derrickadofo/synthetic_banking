@@ -127,6 +127,8 @@ Dieses Power BI Dashboard analysiert ein synthetisches Bankdaten-Portfolio (50.0
 ⚠️ Datenbeschkränkungen & Methodik
 * Data Source: Das Dashboard basiert auf synthetischen Daten. Reale Verhaltensmuster (z. B. Zinsänderungsrisiken, makroökonomische Schocks) sind begrenzt abgebildet.
 
+([Dataset source](https://www.kaggle.com/datasets/akrambelha/synthetic-banking-dataset-csv-sql-sqlite)) - Kaggle
+
 ![key Metriks](docs/key_metriks.png)
 
 ![Kreditrisiko](docs/kreditrisiko.png)
