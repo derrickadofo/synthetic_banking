@@ -3,7 +3,47 @@
 -- Thema: Synthetic Banking Dataset (PostgreSQL)
 -- Fokus: Datenmodellierung, Relationale Datenbanken, Finance-Analysen & Power BI
 -------------------------------------------------------------------------------
+/*
 
+INHALT BESCHREIBUNG
+
+1. Tabellen-Dokumentation
+customers
+Primärschlüssel: customer_id
+Fremdschlüssel: Keine
+Beschreibung: Speichert die Stammdaten der Kunden (Name, E-Mail, Wohnort, Registrierungsdatum) sowie deren Bonitätsscore (credit_score).
+
+accounts
+Primärschlüssel: account_id
+Fremdschlüssel: customer_id _----> customers(customer_id)
+Beschreibung: Verwaltet die einzelnen Bankkonten der Kunden inklusive Kontotyp (z. B. Giro, Sparen), Eröffnungsdatum und aktuelle Kontostände in USD.
+
+cards
+Primärschlüssel: card_id
+Fremdschlüssel: account_----> accounts(account_id)
+Beschreibung: Verknüpft ausgegebene Zahlungskarten (Debit- oder Kreditkarten) und deren Ablaufdatum mit den jeweiligen Bankkonten.
+
+merchants
+Primärschlüssel: merchant_id
+Fremdschlüssel: Keine
+Beschreibung: Stammverzeichnis aller Akzeptanzstellen und Händler (Name und Standort), bei denen Karten-Transaktionen getätigt werden.
+
+branches
+Primärschlüssel: branch_id
+Fremdschlüssel: Keine
+Beschreibung: Enthält Informationen über die physischen Bankfilialen, deren Standorte (Stadt, Land) und den zuständigen Filialleiter.
+
+loans
+Primärschlüssel: loan_id
+Fremdschlüssel: customer_id ----> customers(customer_id)
+Beschreibung: Erfasst die von Kunden aufgenommenen Kredite und Darlehen inklusive Kreditsumme, Zinssatz und Startdatum.
+
+transactions
+Primärschlüssel: transaction_id
+Fremdschlüssel: account_id ----> accounts(account_id), merchant_id ----> merchants(merchant_id)
+Beschreibung: Protokolliert alle Zahlungs- und Transferaktivitäten auf Kontoebene mit Betrag, Buchungsdatum und beteiligtem Händler.
+
+*/
 -------------------------------------------------------------------------------
 -- 1. DATENBANK-INITIALISIERUNG
 -------------------------------------------------------------------------------
@@ -116,7 +156,7 @@ COPY loans(loan_id, customer_id, loan_amount, interest_rate, start_date)
 FROM '/path/to/loans.csv'
 WITH (FORMAT CSV, DELIMITER ',', HEADER TRUE);
 
--- Hinweis: Die Transaktionen und branches wurden via psql direkt importiert (transactions_insert.sql).
+-- Hinweis: Die Transaktionen und branches wurden via psql direkt importiert (transactions_insert.sql, branches_insert.sql).
 
 -------------------------------------------------------------------------------
 -- 4. DATENQUALITÄTSPRÜFUNG & INTEGRITÄTS-CONSTRAINTS
@@ -336,7 +376,7 @@ LIMIT 10;
 "CUSEPV1YW0Y2JL9"	"Joseph Martinez"	    131	                693994.73
 "CUSKHXM7VPMNF2X"	"Erika Fischer"	        113	                587089.04
 "CUS50SZY6T73XEG"	"Emma Franklin"	        113	                578780.37
-"CUSX6HSLBPUJLD4"	"Kimberly Sparks"	                        107	528347.26
+"CUSX6HSLBPUJLD4"	"Kimberly Sparks"	    107	                528347.26
 "CUSVCOXNCJT7F8S"	"Misty Alexander"	    107             	461989.06
 "CUSBDNL0DMP5FEB"	"Christopher Acevedo"	106	                532434.45
 "CUSDXB36LXZGGHA"	"Michael Clay"	        105	                517024.72
@@ -403,6 +443,16 @@ GROUP BY c.card_type
 ORDER BY gesamt_transaktionsvolumen_usd DESC;
 
 
+/*
+"karten_typ"	"anzahl_konten"	"avg_kontostand_usd"	"gesamt_transaktionsvolumen_usd"	"avg_einzeltransaktion_usd"
+"Debit"         	36757	            100593.39	               3353629603.74	                  4994.74
+"Credit"	        36254	            99879.61	                3311621291.05	                  5002.45
+"Keine Karte"	    19802	            99954.94	               1321005600.57	                  5002.79
+
+*/
+
+
+
 --risiko analyse
 WITH kunden_guthaben AS (
     SELECT 
@@ -436,13 +486,7 @@ SELECT
 FROM kunden_guthaben_darhlehen;
 
 
-/*
-"karten_typ"	"anzahl_konten"	"avg_kontostand_usd"	"gesamt_transaktionsvolumen_usd"	"avg_einzeltransaktion_usd"
-"Debit"         	36757	            100593.39	               3353629603.74	                  4994.74
-"Credit"	        36254	            99879.61	                3311621291.05	                  5002.45
-"Keine Karte"	    19802	            99954.94	               1321005600.57	                  5002.79
 
-*/
 
 -------------------------------------------------------------------------------
 -- 7. ANALYSE-VIEWS & STORED PROCEDURES (POWER BI INTEGRATION)
@@ -501,7 +545,7 @@ CREATE OR REPLACE VIEW Kunden_Dashboard AS
 WITH kunden_kredite AS (
     SELECT 
         customer_id,
-        COUNT(loan_id) AS anzahl_kredite, -- Falls Sie die Anzahl der Kredite wissen wollten
+        COUNT(loan_id) AS anzahl_kredite,
         SUM(loan_amount) AS gesamt_darlehen
     FROM loans
     GROUP BY customer_id
