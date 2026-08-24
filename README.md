@@ -33,7 +33,7 @@ Analyse eines synthetischen Bankdatensatzes mit 1,26 Mio. Datensätzen zur prakt
 Die folgenden SQL-Skripte wurden verwendet, um die Daten aufzubereiten und die Analysewerte zu generieren.
 
 ### 1. Haupt-Aggregation nach Kartentyp
-Diese Abfrage erzeugt die primäre Übersichtstabelle über Konten, Salden und Transaktionsvolumina.
+Diese Abfrage erzeugt die primäre Übersichtstabelle über Konten, Salden und Transaktionsvolumen.
 
 ```sql
 SELECT 
@@ -52,7 +52,7 @@ ORDER BY gesamt_transaktionsvolumen_usd DESC;
 
 
 ```
-### 2.  Gesamtanzahl der Kunden & Kontenverteilung nach Kontotyp
+### 2.  Gesamtanzahl der Kunden & Kundenverteilung nach Kontotyp
 
 ```sql
 SELECT 
@@ -110,19 +110,21 @@ ORDER BY transaktion_volumen DESC;
 ---
 Dieses Power BI Dashboard analysiert ein synthetisches Bankdaten-Portfolio (50.000 Kunden, 75.000 Konten) zur Bewertung von Transaktionsmustern, Liquiditätsströmen und Kreditrisiken.
 
-## 💡 Key Analytical InsightsPortfolio-Volumen & Liquidität: 
-* ** Die Gesamteinlagen der Bank liegen stabil bei $7,51 Mrd. gegenüber einem vergebenen Kreditvolumen von $4,50 Mrd.
-* ** Netto-Kreditüberhang: Kreditnehmer halten nur $3,37 Mrd. an Einlagen bei der Bank, was zu einem Netto-Kreditüberhang von -$1,13 Mrd. in dieser Kundengruppe führt. Dieser Überhang wird aktuell durch die Einlagen reiner Sparkunden ($4,14 Mrd.) abgesichert.
-* **Transaktionsdynamik: Das Transaktionsvolumen verläuft über die Jahre stabil (> $2,02 Mrd./Quartal) mit saisonalen Wachstumsraten (QoQ). Die Segmentierung bleibt konstant (ca. 42 % Credit, 41,5 % Debit, 16,5 % Ohne Karte).
-* **Handlungsempfehlung: Gezieltes Cross-Selling (Deposit Capture), um das Guthaben bestehender Kreditnehmer im Haus zu konsolidieren und das Ausfallrisiko bei Top-Schuldnern zu minimieren.
+## 💡 Kern Analytische Erkenntnisse
 
-🛠️ Dashboard Architecture & Visualizations
-* Executive Summary & Key Findings: High-Level KPIs (Total Customer Count, Balance, Loans) und Card-Kacheln.
-* Zeitliche Trends: 100%-Gestapelte Säulendiagramme, Gefüllte Flächendiagramme und QoQ-Growth-Balken mit conditional formatting.
-* Kreditrisiko (Macro Level): Wasserfall-Diagramm zur Herleitung der Netto-Position der Kreditnehmer ($7,51 Mrd. Bank-Einlagen $\rightarrow$ -$1,13 Mrd. Netto-Überhang).
+### Portfolio-Volumen & Liquidität: 
+* Die Gesamteinlagen der Bank liegen stabil bei $7,51 Mrd. gegenüber einem vergebenen Kreditvolumen von $4,50 Mrd.
+* Netto-Kreditüberhang: Kreditnehmer halten nur $3,37 Mrd. an Einlagen bei der Bank, was zu einem Netto-Kreditüberhang von -$1,13 Mrd. in dieser Kundengruppe führt. Dieser Überhang wird aktuell durch die Einlagen reiner Sparkunden ($4,14 Mrd.) abgesichert.
+* Transaktionsdynamik: Das Transaktionsvolumen verläuft über die Jahre stabil (> $2,02 Mrd./Quartal) mit saisonalen Wachstumsraten (QoQ). Die Segmentierung bleibt konstant (ca. 42 % Credit, 41,5 % Debit, 16,5 % Ohne Karte).
+* Handlungsempfehlung: Gezieltes Cross-Selling (Deposit Capture), um das Guthaben bestehender Kreditnehmer im Haus zu konsolidieren und das Ausfallrisiko bei Top-Schuldnern zu minimieren.
+
+🛠️ Dashboard Architektur & Visualizations
+* Key Metriken: High-Level KPIs (Anzahl der Kunden, Gesamteinlagen der bank, Gesamtdarlehen und Kartetypen verteilungen)
+* Zeitliche Trends: Durchschnittliche einzeln Transaktionswert und Gefüllte Flächendiagramme, QoQ-Growth-Balken mit conditional formatting.
+* Kreditrisiko (Macro Level): Wasserfall-Diagramm zur Herleitung der Netto-Position der Kreditnehmer ($7,51 Mrd. Bank-Einlagen ---> -$1,13 Mrd. Netto-Überhang).
 * Kunden-Analyse (Micro Level): Gruppierte Balkendiagramme zur direkten Gegenüberstellung von Guthaben vs. Darlehen pro Einzelkunde.
 
-⚠️ Data Limitations & Methodology
+⚠️ Datenbeschkränkungen & Methodik
 * Data Source: Das Dashboard basiert auf synthetischen Daten. Reale Verhaltensmuster (z. B. Zinsänderungsrisiken, makroökonomische Schocks) sind begrenzt abgebildet.
 
 ![key Metriks](docs/key_metriks.png)
